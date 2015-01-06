@@ -94,7 +94,10 @@ def initializeDaypart()
   def sun = getSunriseAndSunset()
   def now = now()
 
-  def dayparts = [sunrise: sun.sunrise.time, sunset: sun.sunset.time, customOne: customOneTime, customTwo: customTwoTime].sort()
+  def dayparts = [sunrise: sun.sunrise.time,
+                  sunset: sun.sunset.time,
+                  customOne: customOneTime,
+                  customTwo: customTwoTime].sort()
 
   log.debug dayparts
 
