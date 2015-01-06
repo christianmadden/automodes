@@ -32,12 +32,12 @@ preferences
     input "sunriseModeName", "mode", title: "Sunrise Mode"
     input "sunsetModeName", "mode", title: "Sunset Mode"
   }
-  section("Custom daypart 1 of 2", hidden: true)
+  section("Add a custom daypart (optional)", hidden: true)
   {
     input "customOneTime", "time", title: "Starts at this time every day", required: false
     input "customOneModeName", "mode", title: "Mode", required: false
   }
-  section("Custom daypart 2 of 2", hidden: true)
+  section("Add another custom daypart (optional)", hidden: true)
   {
     input "customTwoTime", "time", title: "Starts at this time every day", required: false
     input "customTwoModeName", "mode", title: "Mode", required: false
@@ -60,7 +60,7 @@ def updated()
 /* ************************************************************************** */
 def initialize()
 {
-  log.debug "Initializing... version 0.3"
+  log.debug "Initializing..."
 
   state.modepreFix = ""
   state.modeSuffix = ", Away"
@@ -92,44 +92,50 @@ def initializeDaypart()
   log.debug "Determining initial daypart state..."
 
   def sun = getSunriseAndSunset()
-  def now = now()
+  def now = new Date()
+  def tz = TimeZone.getTimeZone(locale.location.tz_long)
 
-  def dayparts = [sunrise: sun.sunrise.time,
-                  sunset: sun.sunset.time,
-                  customOne: customOneTime,
-                  customTwo: customTwoTime].sort()
+  log.debug now
+
+  def dayparts = [sunrise: sun.sunrise,
+                  sunset: sun.sunset,
+                  customOne: timeToday(customOneTime, tz),
+                  customTwo: timeToday(customTwoTime, tz)].sort { it.value }
 
   log.debug dayparts
 
-  /*
+  log.debug dayparts[0]
+  log.debug dayparts[1]
+  log.debug dayparts[2]
+  log.debug dayparts[3]
+  log.debug now.toString()
+
   if(timeOfDayIsBetween(dayparts[0], dayparts[1], now))
   {
-    log.debug dayparts[0]
+    state.daypart = dayparts[0].key
   }
   else if(timeOfDayIsBetween(dayparts[1], dayparts[2], now))
   {
-    log.debug dayparts[1]
+    state.daypart = dayparts[1].key
   }
   else if(timeOfDayIsBetween(dayparts[2], dayparts[3], now))
   {
-    log.debug dayparts[2]
+    state.daypart = dayparts[2].key
   }
   else
   {
-    log.debug dayparts[3]
+    state.daypart = dayparts[3].key
   }
-  */
+
+  log.debug state.daypart
 }
 
 /* ************************************************************************** */
 def onPresence(evt)
 {
-  state.presence = anyoneIsHome()
-  update()
-
-  /*if(evt.value == "not present")
+  if(evt.value == "not present")
   {
-    if(noPresencesFound())
+    if(everyoneIsAway())
     {
       state.presence = false
     }
@@ -142,7 +148,8 @@ def onPresence(evt)
   {
     state.presence = true
   }
-  */
+
+  update()
 }
 
 /* ************************************************************************** */
@@ -191,6 +198,9 @@ private anyoneIsHome(){ return !everyoneIsAway() }
 /* ************************************************************************** */
 private update()
 {
+  log.debug "The current presence state is: " + state.presence
+  log.debug "The current daypart state is: " + state.daypart
+
   def mode
   def phrase
 
