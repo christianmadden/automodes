@@ -1,14 +1,14 @@
 /**
-*  Automodes
+*  Autophrases
 *  Author: Christian Madden
 */
 
 /* ************************************************************************** */
 definition(
-  name: "Automodes",
+  name: "Autophrases",
   namespace: "christianmadden",
   author: "Christian Madden",
-  description: "Automate changing of modes based on time of day and presence",
+  description: "Automate Hello Home phrases based on time of day and presence",
   category: "Convenience",
   iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
   iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png"
@@ -17,30 +17,69 @@ definition(
 /* ************************************************************************** */
 preferences
 {
-  section("Automodes: Automate changing of modes with Hello Home phrases based on time of day and presence.")
+  page(name: "prefsPage", title: "Autophrases", nextPage: "sunPage", install: false, uninstall: true)
+  page(name: "sunPage", title: "Sunrise/Sunset", nextPage: "customOnePage", install: true, uninstall: true)
+  page(name: "customOnePage", title: "Custom Daypart 1", nextPage: "customTwoPage", install: true, uninstall: true)
+  page(name: "customTwoPage", title: "Custom Daypart 2", install: true, uninstall: true)
+}
+
+/* ************************************************************************** */
+def prefsPage()
+{
+  state.phrases = (location.helloHome?.getPhrases()*.label).sort()
+  dynamicPage(name: "prefsPage")
   {
-    paragraph "Please create modes and phrases following this naming convention before continuing."
-    paragraph "Modes: '<Name>' and '<Name>, Away'"
-    paragraph "Phrases: 'Set Home To <Mode>'"
+    section("Automate Hello Home phrases based on time of day and presence."){}
+    section("When any of these people are home or away")
+    {
+      input "people", "capability.presenceSensor", title: "Which?", multiple: true, required: true
+    }
   }
-  section("Change modes based on these presence sensors")
+}
+
+/* ************************************************************************** */
+def sunPage()
+{
+  dynamicPage(name: "sunPage")
   {
-    input "presence", "capability.presenceSensor", multiple: true, title: "Which?"
+    section("Run these phrases at sunrise and sunset when home or away")
+    {
+      input "sunrisePhrase", "enum", options: state.phrases, title: "Use this phrase at sunrise when home", required: true
+      input "sunrisePhraseAway", "enum", options: state.phrases, title: "Use this phrase at sunrise when away", required: true
+      input "sunsetPhrase", "enum", options: state.phrases, title: "Use this phrase at sunset when home", required: true
+      input "sunrsetPhraseAway", "enum", options: state.phrases, title: "Use this phrase at sunset when away", required: true
+    }
   }
-  section("Mode names to use at sunrise and sunset")
+}
+
+/* ************************************************************************** */
+def customOnePage(page)
+{
+  dynamicPage(name: "customTwoPage")
   {
-    input "sunriseModeName", "mode", title: "Sunrise Mode"
-    input "sunsetModeName", "mode", title: "Sunset Mode"
+    section("Run these phrases at a custom time when home or away (optional)")
+    {
+      input "customTwoTime", "time", title: "Starts at this time every day", required: false
+      input "customTwoPhrase", "enum", options: state.phrases, title: "Use this phrase when home", required: false
+      input "customTwoPhraseAway", "enum", options: state.phrases, title: "Use this phrase when home", required: false
+
+    }
   }
-  section("Add a custom daypart (optional)", hidden: true)
+}
+
+/* ************************************************************************** */
+def customTwoPage(page)
+{
+  def phrases = (location.helloHome?.getPhrases()*.label).sort()
+  dynamicPage(name: page + "Page")
   {
-    input "customOneTime", "time", title: "Starts at this time every day", required: false
-    input "customOneModeName", "mode", title: "Mode", required: false
-  }
-  section("Add another custom daypart (optional)", hidden: true)
-  {
-    input "customTwoTime", "time", title: "Starts at this time every day", required: false
-    input "customTwoModeName", "mode", title: "Mode", required: false
+    section("Run these phrases at a custom time when home or away (optional)")
+    {
+      input "customTwoTime", "time", title: "Starts at this time every day", required: false
+      input "customTwoPhrase", "enum", options: state.phrases, title: "Use this phrase when home", required: false
+      input "customTwo"PhraseAway", "enum", options: state.phrases, title: "Use this phrase when home", required: false
+
+    }
   }
 }
 
@@ -61,11 +100,7 @@ def updated()
 def initialize()
 {
   log.debug "Initializing..."
-
-  state.modepreFix = ""
-  state.modeSuffix = ", Away"
-  state.phrasePrefix = "Set Home To"
-  state.phraseSuffix = ""
+  log.debug location.helloHome?.getPhrases()*.label
 
   subscribe(people, "presence", onPresence)
   subscribe(location, "sunrise", onSunrise)
@@ -74,9 +109,9 @@ def initialize()
   schedule(customOneTime, onCustomOne)
   schedule(customTwoTime, onCustomTwo)
 
-  initializePresence()
-  initializeDaypart()
-  update()
+  //initializePresence()
+  //initializeDaypart()
+  //update()
 }
 
 /* ************************************************************************** */
@@ -91,16 +126,16 @@ def initializeDaypart()
 {
   log.debug "Determining initial daypart state..."
 
+  /*
   def sun = getSunriseAndSunset()
-  def now = new Date()
-  def tz = TimeZone.getTimeZone(locale.location.tz_long)
+  def now = timeToday(new Date(), location.timeZone)
 
   log.debug now
 
-  def dayparts = [sunrise: sun.sunrise,
-                  sunset: sun.sunset,
-                  customOne: timeToday(customOneTime, tz),
-                  customTwo: timeToday(customTwoTime, tz)].sort { it.value }
+  def dayparts = [sunrise: timeToday(sun.sunrise, location.timeZone),
+                  sunset: timeToday(sun.sunset, location.timeZone),
+                  customOne: timeToday(customOneTime, location.timeZone),
+                  customTwo: timeToday(customTwoTime, location.timeZone)].sort { it.value }
 
   log.debug dayparts
 
@@ -128,6 +163,7 @@ def initializeDaypart()
   }
 
   log.debug state.daypart
+  */
 }
 
 /* ************************************************************************** */
