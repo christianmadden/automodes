@@ -17,7 +17,7 @@ definition(
 /* ************************************************************************** */
 preferences
 {
-  page(name: "prefsPage", title: "Autophrases", nextPage: "sunPage", install: false, uninstall: true)
+  page(name: "prefsPage", title: "Automate Hello Home phrases based on time of day and presence.", nextPage: "sunPage", install: false, uninstall: true)
   page(name: "sunPage", title: "Sunrise/Sunset", nextPage: "customOnePage", install: true, uninstall: true)
   page(name: "customOnePage", title: "Custom Daypart 1", nextPage: "customTwoPage", install: true, uninstall: true)
   page(name: "customTwoPage", title: "Custom Daypart 2", install: true, uninstall: true)
@@ -27,9 +27,9 @@ preferences
 def prefsPage()
 {
   state.phrases = (location.helloHome?.getPhrases()*.label).sort()
+
   dynamicPage(name: "prefsPage")
   {
-    section("Automate Hello Home phrases based on time of day and presence."){}
     section("When any of these people are home or away")
     {
       input "people", "capability.presenceSensor", title: "Which?", multiple: true, required: true
@@ -53,9 +53,9 @@ def sunPage()
 }
 
 /* ************************************************************************** */
-def customOnePage(page)
+def customOnePage()
 {
-  dynamicPage(name: "customTwoPage")
+  dynamicPage(name: "customOnePage")
   {
     section("Run these phrases at a custom time when home or away (optional)")
     {
@@ -68,16 +68,15 @@ def customOnePage(page)
 }
 
 /* ************************************************************************** */
-def customTwoPage(page)
+def customTwoPage()
 {
-  def phrases = (location.helloHome?.getPhrases()*.label).sort()
-  dynamicPage(name: page + "Page")
+  dynamicPage(name: "customTwoPage")
   {
     section("Run these phrases at a custom time when home or away (optional)")
     {
       input "customTwoTime", "time", title: "Starts at this time every day", required: false
       input "customTwoPhrase", "enum", options: state.phrases, title: "Use this phrase when home", required: false
-      input "customTwo"PhraseAway", "enum", options: state.phrases, title: "Use this phrase when home", required: false
+      input "customTwoPhraseAway", "enum", options: state.phrases, title: "Use this phrase when home", required: false
 
     }
   }
@@ -100,12 +99,10 @@ def updated()
 def initialize()
 {
   log.debug "Initializing..."
-  log.debug location.helloHome?.getPhrases()*.label
 
   subscribe(people, "presence", onPresence)
   subscribe(location, "sunrise", onSunrise)
   subscribe(location, "sunset", onSunset)
-
   schedule(customOneTime, onCustomOne)
   schedule(customTwoTime, onCustomTwo)
 
@@ -117,14 +114,14 @@ def initialize()
 /* ************************************************************************** */
 def initializePresence()
 {
-  log.debug "Determining initial presence state..."
-  state.presence = anyoneIsHome()
+  log.debug "NOT Determining initial presence state..."
+  //state.presence = anyoneIsHome()
 }
 
 /* ************************************************************************** */
 def initializeDaypart()
 {
-  log.debug "Determining initial daypart state..."
+  log.debug "NOT Determining initial daypart state..."
 
   /*
   def sun = getSunriseAndSunset()
@@ -173,49 +170,83 @@ def onPresence(evt)
   {
     if(everyoneIsAway())
     {
-      state.presence = false
+      newPresence = false
     }
     else
     {
-      state.presence = true
+      newPresence = true
     }
+  }
+  else if(evt.value == "not present")
+  {
+    newPresence = true
+  }
+
+  if(newPresence != state.presence)
+  {
+    state.presence = newPresence
+    update()
+  }
+}
+
+/* ************************************************************************** */
+def onCustomTwo(){ onDaypartChange("sunrise") }
+def onCustomTwo(){ onDaypartChange("sunset") }
+def onCustomTwo(){ onDaypartChange("customOne") }
+def onCustomTwo(){ onDaypartChange("customTwo") }
+
+/* ************************************************************************** */\
+private onDaypartChange(daypart)
+{
+  if(state.daypart != daypart)
+  {
+    state.daypart = daypart
+    update()
+  }
+}
+
+/* ************************************************************************** */
+private updatePhrase()
+{
+  def phrase = getPhrase()
+  executePhrase(phrase)
+}
+
+/* ************************************************************************** */
+private getPhrase()
+{
+  log.debug "The current presence state is: " + state.presence
+  log.debug "The current daypart state is: " + state.daypart
+
+  def phrase
+
+  switch(state.daypart)
+  {
+    case "sunrise":
+      { phrase = (state.presence) ? settings.sunrisePhrase : settings.sunrisePhraseAway }
+    case "sunset":
+      { phrase = (state.presence) ? settings.sunsetPhrase : settings.sunsetPhraseAway }
+    case "customOne":
+      { phrase = (state.presence) ? settings.customOnePhrase : settings.customOnePhraseAway }
+    case "customTwo":
+      { phrase = (state.presence) ? settings.customTwoPhrase : settings.customTwoPhraseAway }
+  }
+}
+
+/* ************************************************************************** */
+private executePhrase(phrase)
+{
+  log.debug "Executing phrase: " + phrase
+
+  if(location.helloHome?.getPhrases().find{ it?.label == phrase })
+  {
+    location.helloHome.execute(phrase)
+    //sendNotificationEvent("${phrase}")
   }
   else
   {
-    state.presence = true
+    sendNotificationEvent("'${phrase}' was not found")
   }
-
-  update()
-}
-
-/* ************************************************************************** */
-def onSunrise()
-{
-  state.daypart = "sunrise"
-  update()
-}
-
-
-/* ************************************************************************** */
-def onSunset()
-{
-  state.daypart = "sunset"
-  update()
-}
-
-
-/* ************************************************************************** */
-def onCustomOne()
-{
-  state.daypart = "custom one"
-  update()
-}
-
-/* ************************************************************************** */
-def onCustomTwo()
-{
-  state.daypart = "custom two"
-  update()
 }
 
 /* ************************************************************************** */
@@ -229,79 +260,3 @@ private everyoneIsAway()
 
 /* ************************************************************************** */
 private anyoneIsHome(){ return !everyoneIsAway() }
-
-
-/* ************************************************************************** */
-private update()
-{
-  log.debug "The current presence state is: " + state.presence
-  log.debug "The current daypart state is: " + state.daypart
-
-  def mode
-  def phrase
-
-  if(state.daypart == "sunrise")
-  {
-    mode = sunriseModeName
-  }
-  else if(state.daypart == "sunset")
-  {
-    mode = sunsetModeName
-  }
-  else if(state.daypart == "custom one")
-  {
-    mode = customOneModeName
-  }
-  else if(state.daypart == "custom two")
-  {
-    mode = customTwoModeName
-  }
-
-  if(!state.presence)
-  {
-    mode = mode + ", Away"
-  }
-
-  phrase = "Set Home To " + mode
-
-  setMode(mode)
-  executePhrase(phrase)
-}
-
-/* ************************************************************************** */
-private setMode(mode)
-{
-  log.debug "Setting mode to: " + mode + " (from : " + location.mode + ")"
-  if(location.mode != mode)
-  {
-    if(location.modes?.find{it.name == mode})
-    {
-      setLocationMode(mode)
-      sendNotificationEvent("${label} has changed the mode to '${mode}'")
-    }
-    else
-    {
-      sendNotificationEvent("${label} tried to change to undefined mode '${mode}'")
-    }
-  }
-  else
-  {
-    log.debug "Mode is already set to '${mode}'"
-  }
-}
-
-/* ************************************************************************** */
-private executePhrase(phrase)
-{
-  log.debug "Executing phrase: " + phrase
-
-  if(location.helloHome?.getPhrases().find{ it?.label == phrase })
-  {
-    location.helloHome.execute(phrase)
-    sendNotificationEvent("${phrase}")
-  }
-  else
-  {
-    sendNotificationEvent("${phrase}' is undefined")
-  }
-}
