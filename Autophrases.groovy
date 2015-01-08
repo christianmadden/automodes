@@ -128,8 +128,17 @@ def initializeDaypart()
   dayparts["now"] = now
   dayparts["sunrise"] = sun.sunrise
   dayparts["sunset"] = sun.sunset
-  dayparts["customOne"] = timeToday(settings.customOneTime, tz)
-  dayparts["customTwo"] = timeToday(settings.customTwoTime, tz)
+
+  // Custom dayparts are optional, make sure we have settings for them
+  if(settings.customOneTime && settings.customOnePhrase && settings.customOnePhraseAway)
+  {
+    dayparts["customOne"] = timeToday(settings.customOneTime, tz)
+  }
+  if(settings.customTwoTime && settings.customTwoPhrase && settings.customTwoPhraseAway)
+  {
+    dayparts["customTwo"] = timeToday(settings.customTwoTime, tz)
+  }
+
   log.debug dayparts
 
   // Sort the map in order of the dates
