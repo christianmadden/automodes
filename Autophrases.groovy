@@ -1,27 +1,23 @@
 /**
 *  Autophrases
 *  Author: Christian Madden
-*  TODO: Use ${}
 */
 
-/* ************************************************************************** */
 definition(
-name: "Autophrases",
-namespace: "christianmadden",
-author: "Christian Madden",
-description: "Automate Hello Home phrases based on time of day and presence",
-category: "Convenience",
-iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
-iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png"
+  name: "Autophrases",
+  namespace: "christianmadden",
+  author: "Christian Madden",
+  description: "Automate Hello Home phrases based on time of day and presence",
+  category: "Convenience",
+  iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
+  iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png"
 )
 
-/* ************************************************************************** */
 preferences
 {
   page(name: "prefsPage", title: "Automate Hello Home phrases based on time of day and presence.", uninstall: true, install: true)
 }
 
-/* ************************************************************************** */
 def prefsPage()
 {
   state.phrases = (location.helloHome?.getPhrases()*.label).sort()
@@ -54,36 +50,33 @@ def prefsPage()
   }
 }
 
-/* ************************************************************************** */
 def installed()
 {
   initialize()
 }
 
-/* ************************************************************************** */
 def updated()
 {
+  // When app is updated, clear out subscriptions and scheduled events and re-initialize
   unsubscribe()
   unschedule()
   initialize()
 }
 
-/* ************************************************************************** */
 def initialize()
 {
   log.debug "Initializing..."
   log.debug "Settings:"
   log.debug settings
-  log.debug "-----"
 
   state.HOME = "home"
   state.AWAY = "away"
 
   subscribe(people, "presence", onPresence)
-
   subscribe(location, "sunrise", onSunrise)
   subscribe(location, "sunset", onSunset)
 
+  // Custom dayparts are optional, make sure we have settings for them
   if(settings.customOneTime && settings.customOnePhrase && settings.customOnePhraseAway)
   {
     log.debug "Scheduling Custom One..."
@@ -96,12 +89,12 @@ def initialize()
     schedule(customTwoTime, onCustomTwo)
   }
 
+  // Get initial values for presence and daypart, then run the proper phrase
   initializePresence()
-  //initializeDaypart()
+  initializeDaypart()
   updatePhrase()
 }
 
-/* ************************************************************************** */
 def initializePresence()
 {
   log.debug "Determining initial presence state..."
@@ -117,29 +110,54 @@ def initializePresence()
   }
 }
 
-/* ************************************************************************** */
 def initializeDaypart()
 {
   log.debug "Determining initial daypart state..."
-  log.debug "Time zone: ${location.timeZone}"
+
+  def tz = location.timeZone
+  log.debug "Time zone: ${tz}"
 
   def now = new Date()
   log.debug now
 
   def sun = getSunriseAndSunset()
+  log.debug sun
 
-  def dayparts = []
-  dayparts["sunrise"] = timeToday(sun.sunrise, location.timeZone)
-  dayparts["sunset"] = timeToday(sun.sunrise, location.timeZone)
-  dayparts["customOne"] = timeToday(customOneTime, location.timeZone)
-  dayparts["customTwo"] = timeToday(customTwoTime, location.timeZone)
+  // Put the dayparts and now into a map
+  def dayparts = [:]
+  dayparts["now"] = now
+  dayparts["sunrise"] = sun.sunrise
+  dayparts["sunset"] = sun.sunset
+  dayparts["customOne"] = timeToday(settings.customOneTime, tz)
+  dayparts["customTwo"] = timeToday(settings.customTwoTime, tz)
   log.debug dayparts
 
-  def daypartsSorted = dayparts.sort { it.value }
-  log.debug daypartsSorted
+  // Sort the map in order of the dates
+  dayparts = dayparts.sort { it.value }
+  log.debug dayparts
+
+  // Where is now in the sorted list of dayparts?
+  def nowPosition = (dayparts.findIndexOf { it.key == "now" })
+  log.debug nowPosition
+
+  def currentDaypart
+
+  // If now is the first item in the list,
+  // the last daypart (from the previous day) is still active/current
+  if(nowPosition == 0)
+  {
+    currentDaypart = dayparts.keySet().last()
+  }
+  else
+  {
+    // Otherwise, the active/current daypart is the one that started previous to now
+    currentDaypart = dayparts.keySet()[nowPosition - 1]
+  }
+
+  log.debug currentDaypart
+  state.daypart = currentDaypart
 }
 
-/* ************************************************************************** */
 def onPresence(evt)
 {
   log.debug "Presence event..."
@@ -166,6 +184,7 @@ def onPresence(evt)
   log.debug "New presence: " + newPresence
   log.debug "Current presence: " + state.presence
 
+  // Only update if the presence has changed
   if(newPresence != state.presence)
   {
     state.presence = newPresence
@@ -173,49 +192,25 @@ def onPresence(evt)
   }
 }
 
-/* ************************************************************************** */
-def onSunset(evt)
-{
-  log.debug "Sunrise..."
-  onDaypartChange("sunrise")
-}
+// Event handlers for daypart events
+def onSunset(evt){ onDaypartChange("sunrise") }
+def onSunrise(evt){ onDaypartChange("sunset") }
+def onCustomOne(evt){ onDaypartChange("customOne") }
+def onCustomTwo(evt){ onDaypartChange("customTwo") }
 
-/* ************************************************************************** */
-def onSunrise(evt)
+private onDaypartChange(daypart)
 {
-  log.debug "Sunset..."
-  onDaypartChange("sunset")
-}
+  log.debug "New daypart: ${daypart}"
+  log.debug "Current daypart: ${state.daypart}"
 
-/* ************************************************************************** */
-def onCustomOne(evt)
-{
-  log.debug "Custom One..."
-  onDaypartChange("customOne")
-}
-
-/* ************************************************************************** */
-def onCustomTwo(evt)
-{
-  log.debug "Custom Two..."
-  onDaypartChange("customTwo")
-}
-
-/* ************************************************************************** */
-private onDaypartChange(dp)
-{
-  log.debug "New daypart: " + dp
-  log.debug "Current daypart: " + state.daypart
-
-  if(dp != state.daypart)
+  if(daypart != state.daypart)
   {
-    state.daypart = dp
-    log.debug "Daypart changed to: " + state.daypart
+    state.daypart = daypart
+    log.debug "Daypart changed to: ${daypart}"
     updatePhrase()
   }
 }
 
-/* ************************************************************************** */
 private updatePhrase()
 {
   log.debug "Updating phrase..."
@@ -223,92 +218,31 @@ private updatePhrase()
   executePhrase(phrase)
 }
 
-/* ************************************************************************** */
 private getPhrase()
 {
-  log.debug "The current presence state is: " + state.presence
-  log.debug "The current daypart state is: " + state.daypart
+  log.debug "The current presence state is: ${state.presence}"
+  log.debug "The current daypart state is: ${state.daypart}"
 
   def phrase
 
-  if(state.daypart == "sunrise")
-  {
-    if(state.presence == state.HOME){ phrase = settings.sunrisePhrase }
-    else if(state.presence == state.AWAY){ phrase = settings.sunrisePhraseAway }
-  }
-  else if(state.daypart == "sunset")
-  {
-    if(state.presence == state.HOME){ phrase = settings.sunsetPhrase }
-    else if(state.presence == state.AWAY){ phrase = settings.sunsetPhraseAway }
-  }
-  else if(state.daypart == "customOne")
-  {
-    if(state.presence == state.HOME){ phrase = settings.customOnePhrase }
-    else if(state.presence == state.AWAY){ phrase = settings.customOnePhraseAway }
-  }
-  else if(state.daypart == "customTwo")
-  {
-    if(state.presence == state.HOME){ phrase = settings.customTwoPhrase }
-    else if(state.presence == state.AWAY){ phrase = settings.customTwoPhraseAway }
-  }
+  if(state.presence == state.HOME){ phrase = settings["${state.daypart}Phrase"] }
+  else{ phrase = settings["${state.daypart}PhraseAway"] }
 
   return phrase
 }
 
-/* ************************************************************************** */
 private executePhrase(phrase)
 {
-  log.debug "Executing phrase: " + phrase
-  location.helloHome.execute(phrase)
+  log.debug "Executing phrase: ${phrase}"
+  // *********** location.helloHome.execute(phrase) ********
 }
 
-/* ************************************************************************** */
 private everyoneIsAway()
 {
   return people.every{ it.currentPresence == "not present" }
 }
 
-/* ************************************************************************** */
 private anyoneIsHome()
 {
   return people.any{ it.currentPresence == "present" }
 }
-
-
-
-/*
-
-if(timeOfDayIsBetween(dayparts[0], dayparts[1], now))
-{
-state.daypart = dayparts[0].key
-}
-else if(timeOfDayIsBetween(dayparts[1], dayparts[2], now))
-{
-state.daypart = dayparts[1].key
-}
-else if(timeOfDayIsBetween(dayparts[2], dayparts[3], now))
-{
-state.daypart = dayparts[2].key
-}
-else
-{
-state.daypart = dayparts[3].key
-}
-
-log.debug state.daypart
-
-TIME CODE FROM GITHUB
-log.debug "time zone: ${location.timeZone}"
-
-def now = new Date()
-def yesterday = now - 1
-def tomorrow = now + 1
-
-log.debug "now: ${now}"
-log.debug "yesterday: ${yesterday}"
-log.debug "tomorrow: ${tomorrow}"
-
-def between = timeOfDayIsBetween(yesterday, tomorrow, now, location.timeZone)
-log.debug "between: ${between}"
-
-*/
