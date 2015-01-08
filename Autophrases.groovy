@@ -100,13 +100,13 @@ def initializePresence()
   log.debug "Determining initial presence state..."
   if(anyoneIsHome())
   {
-    log.debug "Initial presence: ${state.HOME}"
-    state.presence = state.HOME
+    log.debug "Initial presence: home"
+    state.presence = "home"
   }
   else
   {
-    log.debug "Initial presence: ${state.AWAY}"
-    state.presence = state.AWAY
+    log.debug "Initial presence: away"
+    state.presence = "away"
   }
 }
 
@@ -169,16 +169,16 @@ def onPresence(evt)
   {
     if(everyoneIsAway())
     {
-      newPresence = state.AWAY
+      newPresence = "away"
     }
     else
     {
-      newPresence = state.HOME
+      newPresence = "home"
     }
   }
   else if(evt.value == "present")
   {
-    newPresence = state.HOME
+    newPresence = "home"
   }
 
   log.debug "New presence: " + newPresence
@@ -225,7 +225,7 @@ private getPhrase()
 
   def phrase
 
-  if(state.presence == state.HOME){ phrase = settings["${state.daypart}Phrase"] }
+  if(state.presence == "home"){ phrase = settings["${state.daypart}Phrase"] }
   else{ phrase = settings["${state.daypart}PhraseAway"] }
 
   return phrase
@@ -234,7 +234,7 @@ private getPhrase()
 private executePhrase(phrase)
 {
   log.debug "Executing phrase: ${phrase}"
-  // *********** location.helloHome.execute(phrase) ********
+  location.helloHome.execute(phrase)
 }
 
 private everyoneIsAway()
