@@ -69,9 +69,6 @@ def initialize()
   log.debug "Settings:"
   log.debug settings
 
-  state.HOME = "home"
-  state.AWAY = "away"
-
   subscribe(people, "presence", onPresence)
   subscribe(location, "sunrise", onSunrise)
   subscribe(location, "sunset", onSunset)
