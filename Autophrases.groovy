@@ -9,8 +9,8 @@ definition(
   author: "Christian Madden",
   description: "Automate Hello Home phrases based on time of day and presence",
   category: "Convenience",
-  iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
-  iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png"
+  iconUrl: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon.png",
+  iconX2Url: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon@2x.png"
 )
 
 preferences
@@ -194,8 +194,8 @@ def onPresence(evt)
 }
 
 // Event handlers for daypart events
-def onSunset(evt){ onDaypartChange("sunrise") }
-def onSunrise(evt){ onDaypartChange("sunset") }
+def onSunrise(evt){ onDaypartChange("sunrise") }
+def onSunset(evt){ onDaypartChange("sunset") }
 def onCustomOne(evt){ onDaypartChange("customOne") }
 def onCustomTwo(evt){ onDaypartChange("customTwo") }
 
