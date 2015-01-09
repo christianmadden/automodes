@@ -28,24 +28,29 @@ def prefsPage()
     {
       input "people", "capability.presenceSensor", title: "Which?", multiple: true, required: true
     }
-    section("Run these phrases at sunrise and sunset when home or away")
+    section("Run these phrases at sunrise and sunset")
     {
-      input "sunrisePhrase", "enum", options: state.phrases, title: "Use this phrase at sunrise when home", required: true
-      input "sunrisePhraseAway", "enum", options: state.phrases, title: "Use this phrase at sunrise when away", required: true
-      input "sunsetPhrase", "enum", options: state.phrases, title: "Use this phrase at sunset when home", required: true
-      input "sunsetPhraseAway", "enum", options: state.phrases, title: "Use this phrase at sunset when away", required: true
+      input "sunrisePhrase", "enum", options: state.phrases, title: "At sunrise when home", required: true
+      input "sunrisePhraseAway", "enum", options: state.phrases, title: "At sunrise when away", required: true
+      input "sunsetPhrase", "enum", options: state.phrases, title: "At sunset when home", required: true
+      input "sunsetPhraseAway", "enum", options: state.phrases, title: "At sunset when away", required: true
     }
-    section("Run these phrases at a custom time when home or away (optional)")
+    section("Run these phrases at a custom time (optional)")
     {
-      input "customOneTime", "time", title: "Starts at this time every day", required: false
-      input "customOnePhrase", "enum", options: state.phrases, title: "Use this phrase when home", required: false
-      input "customOnePhraseAway", "enum", options: state.phrases, title: "Use this phrase when away", required: false
+      input "customOneTime", "time", title: "At this time every day", required: false
+      input "customOnePhrase", "enum", options: state.phrases, title: "When home", required: false
+      input "customOnePhraseAway", "enum", options: state.phrases, title: "When away", required: false
     }
-    section("Run these phrases at a custom time when home or away (optional)")
+    section("Run these phrases at a custom time (optional)")
     {
-      input "customTwoTime", "time", title: "Starts at this time every day", required: false
-      input "customTwoPhrase", "enum", options: state.phrases, title: "Use this phrase when home", required: false
-      input "customTwoPhraseAway", "enum", options: state.phrases, title: "Use this phrase when away", required: false
+      input "customTwoTime", "time", title: "At this time every day", required: false
+      input "customTwoPhrase", "enum", options: state.phrases, title: "When home", required: false
+      input "customTwoPhraseAway", "enum", options: state.phrases, title: "When away", required: false
+    }
+    section("Notifications")
+    {
+      input "sendPushMessage", "enum", title: "Send a push notification?", metadata: [values: ["Yes","No"]], required: false
+      input "phoneToText", "phone", title: "Send a text message to this phone (optional)", required: false
     }
   }
 }
@@ -89,10 +94,13 @@ def initialize()
   // Get initial values for presence and daypart, then run the proper phrase
   initializePresence()
   initializeDaypart()
-  updatePhrase()
+
+  // Don't notify during install process, it fails
+  // TODO: Named argument here, how to do this with a default value also?
+  updatePhrase(false)
 }
 
-def initializePresence()
+private initializePresence()
 {
   log.debug "Determining initial presence state..."
   if(anyoneIsHome())
@@ -107,22 +115,16 @@ def initializePresence()
   }
 }
 
-def initializeDaypart()
+private initializeDaypart()
 {
   log.debug "Determining initial daypart state..."
 
   def tz = location.timeZone
-  log.debug "Time zone: ${tz}"
-
-  def now = new Date()
-  log.debug now
-
   def sun = getSunriseAndSunset()
-  log.debug sun
 
   // Put the dayparts and now into a map
   def dayparts = [:]
-  dayparts["now"] = now
+  dayparts["now"] = new Date()
   dayparts["sunrise"] = sun.sunrise
   dayparts["sunset"] = sun.sunset
 
@@ -136,15 +138,11 @@ def initializeDaypart()
     dayparts["customTwo"] = timeToday(settings.customTwoTime, tz)
   }
 
-  log.debug dayparts
-
   // Sort the map in order of the dates
   dayparts = dayparts.sort { it.value }
-  log.debug dayparts
 
   // Where is now in the sorted list of dayparts?
   def nowPosition = (dayparts.findIndexOf { it.key == "now" })
-  log.debug nowPosition
 
   def currentDaypart
 
@@ -160,7 +158,6 @@ def initializeDaypart()
     currentDaypart = dayparts.keySet()[nowPosition - 1]
   }
 
-  log.debug currentDaypart
   state.daypart = currentDaypart
 }
 
@@ -187,12 +184,10 @@ def onPresence(evt)
     newPresence = "home"
   }
 
-  log.debug "New presence: " + newPresence
-  log.debug "Current presence: " + state.presence
-
   // Only update if the presence has changed
   if(newPresence != state.presence)
   {
+    log.debug "Presence changed from ${state.presence} to ${newPresence}"
     state.presence = newPresence
     updatePhrase()
   }
@@ -206,41 +201,78 @@ def onCustomTwo(evt){ onDaypartChange("customTwo") }
 
 private onDaypartChange(daypart)
 {
-  log.debug "New daypart: ${daypart}"
-  log.debug "Current daypart: ${state.daypart}"
-
   if(daypart != state.daypart)
   {
     state.daypart = daypart
-    log.debug "Daypart changed to: ${daypart}"
+    log.debug "Daypart changed from ${state.daypart} to: ${daypart}"
     updatePhrase()
   }
 }
 
-private updatePhrase()
+private updatePhrase(notificationsEnabled=true)
 {
   log.debug "Updating phrase..."
   def phrase = getPhrase()
   executePhrase(phrase)
+
+  if(notificationsEnabled)
+  {
+    notify(phrase)
+  }
 }
 
 private getPhrase()
 {
-  log.debug "The current presence state is: ${state.presence}"
-  log.debug "The current daypart state is: ${state.daypart}"
+  log.debug "Presence for phrase: ${state.presence}"
+  log.debug "Daypart for phrase: ${state.daypart}"
 
   def phrase
 
-  if(state.presence == "home"){ phrase = settings["${state.daypart}Phrase"] }
-  else{ phrase = settings["${state.daypart}PhraseAway"] }
+  if(state.presence == "home")
+  {
+    phrase = settings["${state.daypart}Phrase"]
+  }
+  else
+  {
+    phrase = settings["${state.daypart}PhraseAway"]
+  }
 
   return phrase
 }
 
 private executePhrase(phrase)
 {
-  log.debug "Executing phrase: ${phrase}"
+  log.debug ">>> Executing phrase: ${phrase}"
   location.helloHome.execute(phrase)
+}
+
+private notify(phrase)
+{
+  // Phrases with spaces are put into a list of some sort
+  phrase = phrase.toString()
+
+  def message = "Autophrases is running the Hello Home phrase '${phrase}' for you."
+  log.debug message
+
+  // Send push message and HH message
+  if(settings.sendPushMessage == "Yes")
+  {
+    log.debug "Sending push message..."
+    sendPush(message)
+  }
+  else
+  {
+    // Just sent HH message
+    log.debug "Sending Hello Home message..."
+    sendNotificationEvent(message)
+  }
+
+  // Send text message (don't re-send HH message)
+  if(settings.phoneToText)
+  {
+    log.debug "Sending text message..."
+    sendSmsMessage(settings.phoneToText, message)
+  }
 }
 
 private everyoneIsAway()
