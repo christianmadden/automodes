@@ -251,7 +251,7 @@ private notify(phrase)
   // Phrases with spaces are put into a list of some sort
   phrase = phrase.toString()
 
-  def message = "Autophrases is running the Hello Home phrase '${phrase}' for you."
+  def message = "Autophrases ran the Hello Home phrase '${phrase}' for you."
   log.debug message
 
   // Send push message and HH message
