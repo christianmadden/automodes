@@ -9,8 +9,8 @@ definition(
   author: "Christian Madden",
   description: "Automate Hello Home phrases based on time of day and presence",
   category: "Convenience",
-  iconUrl: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon.png",
-  iconX2Url: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon@2x.png"
+  iconUrl: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon.png?v=2",
+  iconX2Url: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon@2x.png?v=2"
 )
 
 preferences
