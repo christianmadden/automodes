@@ -244,10 +244,10 @@ private httpNotify(phrase)
   def httpNotifyPath = appSettings.httpNotifyPath
   if(httpNotifyBaseUrl && httpNotifyPath)
   {
-    phrase_for_url = phrase.replaceAll(",", "");
+    def phrase_for_url = phrase.replaceAll(",", "");
     phrase_for_url = phrase_for_url.replaceAll(" ", "-");
     phrase_for_url = phrase_for_url.toLowerCase()
-    path = httpNotifyPath + phrase_for_url
+    def path = httpNotifyPath + phrase_for_url
     def params =
     [
         uri: httpNotifyBaseUrl,
