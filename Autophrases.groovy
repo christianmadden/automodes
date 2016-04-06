@@ -25,8 +25,8 @@ definition(
   iconUrl: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon.png?v=2",
   iconX2Url: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon@2x.png?v=2"
 ){
-  appSetting "HTTP_NOTIFY_BASE_URL"
-  appSetting "HTTP_NOTIFY_PATH"
+  appSetting "httpNotifyBaseUrl"
+  appSetting "httpNotifyPath"
 }
 
 preferences
@@ -240,17 +240,17 @@ private updatePhrase(notificationsEnabled=true)
 
 private httpNotify(phrase)
 {
-  HTTP_NOTIFY_BASE_URL = appSettings.HTTP_NOTIFY_BASE_URL
-  HTTP_NOTIFY_PATH = appSettings.HTTP_NOTIFY_PATH
-  if(NOTIFY_BASE_URL && HTTP_NOTIFY_PATH)
+  def httpNotifyBaseUrl = appSettings.httpNotifyBaseUrl
+  def httpNotifyPath = appSettings.httpNotifyPath
+  if(httpNotifyBaseUrl && httpNotifyPath)
   {
     phrase_for_url = phrase.replaceAll(",", "");
     phrase_for_url = phrase_for_url.replaceAll(" ", "-");
     phrase_for_url = phrase_for_url.toLowerCase()
-    path = HTTP_NOTIFY_PATH + phrase_for_url
+    path = httpNotifyPath + phrase_for_url
     def params =
     [
-        uri: HTTP_NOTIFY_BASE_URL,
+        uri: httpNotifyBaseUrl,
         path: path
     ]
     try
