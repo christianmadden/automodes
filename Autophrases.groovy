@@ -24,10 +24,7 @@ definition(
   category: "Convenience",
   iconUrl: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon.png?v=2",
   iconX2Url: "https://s3.amazonaws.com/christianmadden.com/i/autophrases/autophrases-icon@2x.png?v=2"
-){
-  appSetting "httpNotifyBaseUrl"
-  appSetting "httpNotifyPath"
-}
+)
 
 preferences
 {
@@ -231,33 +228,9 @@ private updatePhrase(notificationsEnabled=true)
   log.debug "Updating phrase..."
   def phrase = getPhrase()
   executePhrase(phrase)
-  httpNotify(phrase)
   if(notificationsEnabled)
   {
     notify(phrase)
-  }
-}
-
-private httpNotify(phrase)
-{
-  def httpNotifyBaseUrl = appSettings.httpNotifyBaseUrl
-  def httpNotifyPath = appSettings.httpNotifyPath
-  if(httpNotifyBaseUrl && httpNotifyPath)
-  {
-    def phrase_for_url = phrase.replaceAll(",", "");
-    phrase_for_url = phrase_for_url.replaceAll(" ", "-");
-    phrase_for_url = phrase_for_url.toLowerCase()
-    def path = httpNotifyPath + phrase_for_url
-    def params =
-    [
-        uri: httpNotifyBaseUrl,
-        path: path
-    ]
-    try
-    {
-      httpGet(params) { resp -> }
-    }
-    catch(e){ log.error "Error: $e" }
   }
 }
 
